@@ -1,5 +1,6 @@
 ﻿using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
@@ -65,7 +66,53 @@ namespace CreationPlugin3
                 walls.Add(wall);
                 wall.get_Parameter(BuiltInParameter.WALL_HEIGHT_TYPE).Set(level2.Id);
             }
+            AddDoor(doc, level1, walls[0]);
+            AddWindow(doc, level1, walls[1]);
+            AddWindow(doc, level1, walls[2]);
+            AddWindow(doc, level1, walls[3]);
             transaction.Commit();
+        }
+        private static void AddDoor(Document doc, Level level_1, Wall wall)
+        {
+            FamilySymbol doorType = new FilteredElementCollector(doc)
+                .OfClass(typeof(FamilySymbol))
+                .OfCategory(BuiltInCategory.OST_Doors)
+                .OfType<FamilySymbol>()
+                .Where(x => x.Name.Equals("0915 x 2134 мм"))
+                .Where(x => x.FamilyName.Equals("Одиночные-Щитовые"))
+                .FirstOrDefault();
+
+            LocationCurve hostCurve = wall.Location as LocationCurve;
+            XYZ point_1 = hostCurve.Curve.GetEndPoint(0);
+            XYZ point_2 = hostCurve.Curve.GetEndPoint(1);
+            XYZ point = (point_1 + point_2) / 2;
+
+            if (!doorType.IsActive)
+                doorType.Activate();
+            doc.Create.NewFamilyInstance(point, doorType, wall, level_1, StructuralType.NonStructural);
+        }
+
+        private static void AddWindow(Document doc, Level level_1, Wall wall)
+        {
+            FamilySymbol windowType = new FilteredElementCollector(doc)
+                .OfClass(typeof(FamilySymbol))
+                .OfCategory(BuiltInCategory.OST_Windows)
+                .OfType<FamilySymbol>()
+                .Where(x => x.Name.Equals("0915 x 1220 мм"))
+                .Where(x => x.FamilyName.Equals("Фиксированные"))
+                .FirstOrDefault();
+
+            LocationCurve hostCurve = wall.Location as LocationCurve;
+            XYZ point_1 = hostCurve.Curve.GetEndPoint(0);
+            XYZ point_2 = hostCurve.Curve.GetEndPoint(1);
+            XYZ point = (point_1 + point_2) / 2;
+
+            if (!windowType.IsActive)
+                windowType.Activate();
+            var window = doc.Create.NewFamilyInstance(point, windowType, wall, level_1, StructuralType.NonStructural);
+            Parameter sillHeight = window.get_Parameter(BuiltInParameter.INSTANCE_SILL_HEIGHT_PARAM);
+            double sh = UnitUtils.ConvertToInternalUnits(800, UnitTypeId.Millimeters);
+            sillHeight.Set(sh);
         }
     }
 }
